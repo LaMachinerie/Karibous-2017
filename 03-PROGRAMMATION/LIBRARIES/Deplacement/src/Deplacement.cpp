@@ -8,8 +8,8 @@ Deplacement::Deplacement(int dirRight,
 	int stepRight,
 	int stepLeft,
 	int mode,
-	int entreAxe,
-	int diametreRoue,
+	double entraxe,
+	double wheelDiameter,
 	int reduction)
 {
 	_pins[0] = dirRight;
@@ -17,10 +17,21 @@ Deplacement::Deplacement(int dirRight,
 	_pins[2] = stepRight;
 	_pins[3] = stepLeft;
 
+	_YActu = 0;
+	_XActu = 0;
+
+	_entraxe = entraxe;
+	_wheelDiameter = wheelDiameter;
+	_reduction = reduction;
+
 	_mode = mode;
 	setNbStep(NB_STEPPER_TURN);
 
-	_minPulseWidth = 2;
+	_wheelPerimeter = PI * _wheelDiameter ; // En mm
+	_stepResolution = _wheelPerimeter/(_nbStep*_reduction); // En mm
+
+	_minPulseWidth = 2; // En us
+
 	enableOutputs();
 }
 
@@ -53,6 +64,173 @@ void Deplacement::Step()
 	delayMicroseconds(_minPulseWidth);
 	digitalWrite(_pins[2],LOW);
 	digitalWrite(_pins[3],LOW);
+}
+
+bool Deplacement::run()
+{
+	if (_currentStep<_targetStep)
+	{
+		if ((micros()-_lastTime) >=_Pa)
+		{
+			if(_currentStep<_accelDistance)
+			{
+				// Phase d'acceleration
+				_m=-_R;
+			}
+			else if(_currentStep>=_accelDistance && _currentStep<=_targetStep-_accelDistance)
+			{
+				// Phase vitesse constante
+				_m=0;
+			}
+			else
+			{
+				// Phase de decceleration
+				_m=_R;
+			}
+			// Equation 22
+			_q = _m*_Pa*_Pa;
+			// Equation 23
+			//p = p*(1 + q + q*q)
+			_Pa = _Pa*(1+_q+_q*_q);
+			_lastTime = micros();
+			Step();
+			_currentStep=_currentStep+1;
+		}
+		_stateRun = true;
+	}
+	else
+	{
+		_stateRun = false;
+		_Pa = _P1; // Pret à repartir
+	}
+	return _stateRun;
+}
+
+void Deplacement::setMaxSpeed(unsigned long speed)
+{
+	_speed = speed;
+	computeSpeedAccel();
+}
+
+void Deplacement::setAcceleration(unsigned long accel)
+{
+	_accel = accel;
+	computeSpeedAccel();
+}
+
+void Deplacement::turn(long angle)
+{
+	_targetStep=abs(angle);
+	_currentStep=0;
+
+	if (angle > 0)
+	{
+		_dirMotorLeft = 1;
+		_dirMotorRight = 0;
+	}
+	else
+	{
+		_dirMotorLeft = 0;
+		_dirMotorRight = 1;
+	}
+	setDirection();
+}
+
+void Deplacement::go(long distance)
+{
+	_targetStep = abs(distance);
+	_currentStep = 0;
+
+	if (distance > 0)
+	{
+		_dirMotorLeft = 1;
+		_dirMotorRight = 1;
+	}
+	else
+	{
+		_dirMotorLeft = 0;
+		_dirMotorRight = 0;
+	}
+	setDirection();
+}
+
+void Deplacement::computeSpeedAccel()
+{
+	// Equation 17
+	_P1 = 1000000/sqrt(2*_accel);
+	_Pa=_P1; // Deplacement initial
+	// Equation 19
+	_R=_accel/pow(1000000,2);
+	//Equation 16
+	_accelDistance=(pow(_speed,2)/(2*_accel));
+}
+
+void Deplacement::pause()
+{
+	_targetStepTemp = _targetStep ;
+	_currentStepTemp = _currentStep;
+	_targetStep = _currentStep + _accelDistance ;
+	_statePause = true;
+}
+
+void Deplacement::resume()
+{
+	_targetStep = _targetStepTemp - _currentStepTemp ;
+	_currentStep = 0;
+	_statePause = false;
+}
+
+void Deplacement::turnGo(long angle, long distance)
+{
+	_targetDistStep = distance; // En pas
+	_targetArcStep = angle ; // En pas
+}
+
+bool Deplacement::runGoTo()
+{
+	switch (_stateGoTo)
+	{
+		case 0:
+			//Stop
+			return false;
+		break;
+		case 1:
+			//Init turn
+			turn(_targetArcStep);
+			_stateGoTo++;
+		case 2:
+			//En train de tourner
+			if(!run()) _stateGoTo++; // Le robot est arrivé
+		break;
+		case 3:
+			// Init go distance
+			go(_targetDistStep);
+			_stateGoTo++;
+		break;
+		case 4:
+			//En train d'avancer
+			if(!run()) _stateGoTo = 0; // Le robot est arrivé
+		break;
+	}
+}
+
+void Deplacement::goTo(long X, long Y, long orientation)
+{
+	double distance;
+	double angle;
+	distance = sqrt(pow((Y-_YActu),2)+pow((X-_XActu),2)); // En mm
+	angle = atan2(Y-_YActu,X-_XActu); // En radians
+
+	_XActu = X;
+	_YActu = Y;
+
+	_targetDistStep = long(distance/_stepResolution);
+
+	// Calcul de la longueur d'arc à effectuer pour réaliser la rotation
+	_arcDistance = angle * PI * _entraxe / 400 ; // En mm
+	_targetArcStep = _arcDistance/_stepResolution ; // Conversion en pas
+
+	_stateGoTo=1;
 }
 
 /*
@@ -90,105 +268,6 @@ void Deplacement::setMaxPercentageProfil(char percentage)
 	_percentages[0]=_percentages[2]=(100-_percentages[1])/2;
 }
 */
-
-
-bool Deplacement::run()
-{
-	bool state;
-	if (_currentStep<_targetStep)
-	{
-		if ((micros()-_lastTime) >=_Pa)
-		{
-			if(_currentStep<_accelDistance)
-			{
-				// Phase d'acceleration
-				_m=-_R;
-			}
-			else if(_currentStep>=_accelDistance && _currentStep<=_targetStep-_accelDistance)
-			{
-				// Phase vitesse constante
-				_m=0;
-			}
-			//else if(_currentStep<_targetStep && _currentStep>_targetStep-_accelDistance )
-			else
-			{
-				// Phase de decceleration
-				_m=_R;
-			}
-			// Equation 22
-			_q = _m*_Pa*_Pa;
-			// Equation 23
-			//p = p*(1 + q + q*q)
-			_Pa = _Pa*(1+_q+_q*_q);
-			_lastTime = micros();
-			Step();
-			_currentStep=_currentStep+1;
-		}
-		state = true;
-	}
-	else
-	{
-		state = false;
-	}
-	return state;
-}
-
-void Deplacement::setMaxSpeed(unsigned long speed)
-{
-	_speed = speed;
-	//DEPRECIATE
-	//_stepTime = 1000000/_speed;
-}
-
-void Deplacement::setAcceleration(unsigned long accel)
-{
-	_accel = accel;
-	//accelToTime();
-}
-
-void Deplacement::turn(long angle)
-{
-	// angle en pas
-	_targetStep=abs(angle);
-	_currentStep=0;
-
-	if (angle > 0)
-	{
-		_dirMotorLeft = 1;
-		_dirMotorRight = 0;
-	}
-	else
-	{
-		_dirMotorLeft = 0;
-		_dirMotorRight = 1;
-	}
-	setDirection();
-	setProfil();
-	computeSpeedAccel();
-}
-
-void Deplacement::go(long distance)
-{
-	// distance en pas
-
-	_targetStep = abs(distance);
-	_currentStep = 0;
-
-	if (distance > 0)
-	{
-		_dirMotorLeft = 1;
-		_dirMotorRight = 1;
-	}
-	else
-	{
-		_dirMotorLeft = 0;
-		_dirMotorRight = 0;
-	}
-	setDirection();
-	setProfil();
-	computeSpeedAccel();
-}
-
 //DEPRECIATE
 /*
 void Deplacement::setProfil()
@@ -202,29 +281,3 @@ void Deplacement::setProfil()
 
 }
 */
-
-void Deplacement::computeSpeedAccel()
-{
-	// Equation 17
-	_P1 = 1000000/sqrt(2*_accel);
-	_Pa=_P1; // Deplacement initial
-	// Equation 19
-	_R=_accel/pow(1000000,2);
-	//Equation 16
-	_accelDistance=(pow(_speed,2)/(2*_accel));
-}
-
-void Deplacement::turnGo(long angle, long distance)
-{
-
-}
-
-void Deplacement::goTo(long X, long Y, long orientation)
-{
-	//sqrt((YA - YB)2 + (XB - XA)2)
-	double distance;
-	double angle;
-	distance = sqrt(pow((Y-_YActu),2)+pow((X-_XActu),2));
-	angle = atan2(Y-_YActu,X-_XActu);
-
-}

@@ -19,10 +19,9 @@ public:
 		int stepRight,
 		int stepLeft,
 		int mode,
-		int entreAxe,
-		int diametreRoue,
+		double entraxe,
+		double wheelDiameter,
 		int reduction);
-
 	/**
 	 * Fonction permettant de mettre à jour la position du robot en fonction de
 	 * la vitesse, de l'acceleration et de la position demandée. A appeler le
@@ -66,9 +65,23 @@ public:
 	 */
 	void turn(long angle);
 
+	/**
+	 * Fait aller le robot en ligne droite de la distance définie en pas.
+	 * @param distance distance en pas.
+	 */
 	void go(long distance);
 
+	/**
+	 * Met à jour le nombre de pas pour faire un tour de moteur.
+	 * Depend du mode de pilotage.
+	 * @param nbStep nombre de pas du moteur. En genreral 200.
+	 */
 	void setNbStep(int nbStep);
+
+	bool runGoTo();
+
+	void pause();
+	void resume();
 
 	//DEPRECIATE
 	//void setProfil();
@@ -109,39 +122,125 @@ private:
 	 */
 	int _pins[4];
 
+
 	unsigned long _lastTime;
-
+	/**
+	 * Vitesse souhaitée maximum du robot en pas/s
+	 */
 	unsigned long _speed;
-
+	/**
+	 *  Acceleration souhaitée maximum du robot en pas/s2
+	 */
 	unsigned long _accel;
-
+	/**
+	 * Nombre de pas à réaliser
+	 */
 	unsigned long _targetStep;
+	unsigned long _targetStepTemp;
+	/**
+	 * Nombre de pas déja effectués
+	 */
 	unsigned long _currentStep;
-
+	unsigned long _currentStepTemp;
+	/**
+	 * Direction du moteur gauche
+	 */
 	bool _dirMotorLeft;
+	/**
+	 * Direction du moteur droit
+	 */
 	bool _dirMotorRight;
-
+	/**
+	 * Position en X actuelle du robot
+	 */
 	long _XActu;
+	/**
+	 * Position en Y actuelle du robot
+	 */
 	long _YActu;
+	/**
+	 * Orientation actuelle du robot
+	 */
 	long _orientationActu;
-
+	/**
+	 * Temps actuel entre deux pas
+	 */
 	unsigned long _currentStepTime;
-
+	/**
+	 * Distance en pas de la phase d'acceleration et de decceleration.
+	 */
 	unsigned long _accelDistance;
-
+	/**
+	 * Temps entre deux pas pour le pas initial
+	 * Variable de calcul de l'equation 17
+	 */
 	double _P1;
+	/**
+	 * Constant multiplier
+	 * Variable de calcul de l'equation 19
+	 */
 	double _R;
+	/**
+	 * Variable multiplicatrice
+	 * Variable de calcul de l'equation 20
+	 */
 	double _m;
+	/**
+	 * Temps entre deux pas. A recalculer tous les pas pour gerer
+	 * l'acceleration et la decceleration.
+	 * Variable de calcul de l'equation 23
+	 */
 	double _Pa;
+	/**
+	 * Variable de calcul de l'equation 23
+	 */
 	double _q;
 
 	/**
 	 * Nombre de step par tour de moteur. Défini par le mode de pilotage et par
-	 * le nombre max de step des moteurs pas à pas
+	 * le nombre max de step des moteurs pas à pas.
 	 */
 	int _nbStep;
-
+	/**
+	 * Mode de pilotage du Driver :
+	 * FULL_STEP 1 - HALF_STEP 2 - QUARTER_STEP 4 -
+	 * EIGHTH_STEP 8 - SIXTEENTH_STEP 16 - THIRTYTH_STEP 32
+	 */
 	int _mode;
+	/**
+	 * Valeur de l'entraxe du robot ( distance entre les roues ).
+	 */
+	double _entraxe;
+	/**
+	 * Diametre des roues.
+	 */
+	double _wheelDiameter;
+	/**
+	 * Valeur de l'étage de reduction.
+	 */
+	int _reduction;
+	/**
+	 * Perimetre des roues.
+	 */
+	double _wheelPerimeter;
+	/**
+	 * Resolution d'un pas en mm.
+	 */
+	double _stepResolution;
+	/**
+	 * Longueur de l'arc de rotation.
+	 */
+	double _arcDistance;
+
+	long _targetDistStep;
+
+	long _targetArcStep;
+
+	char _stateGoTo;
+
+	bool _stateRun;
+
+	bool _statePause;
 
 	//DEPRECIATE
 	//unsigned long _percentages[3];
