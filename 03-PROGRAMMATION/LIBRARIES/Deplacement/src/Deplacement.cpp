@@ -21,16 +21,15 @@ Deplacement::Deplacement(int dirRight,
 	setNbStep(NB_STEPPER_TURN);
 
 	_minPulseWidth = 2;
-
 	enableOutputs();
 }
 
 void Deplacement::enableOutputs()
 {
-	pinMode(_pins[0], OUTPUT);
-    pinMode(_pins[1], OUTPUT);
-	pinMode(_pins[2], OUTPUT);
-    pinMode(_pins[3], OUTPUT);
+	for (int i=0;i<=3;i++)
+	{
+		pinMode(_pins[i], OUTPUT);
+	}
 }
 
 void Deplacement::setNbStep(int nbStep)
@@ -56,62 +55,71 @@ void Deplacement::Step()
 	digitalWrite(_pins[3],LOW);
 }
 
+/*
+DEPRECIATE
 void Deplacement::speedToTime()
 {
 	//Equation 18
 	_maxSpeedTime = 1000000/_speed; // temps en microsecond entre deux pas à vitesse maxi
 }
-
+*/
+//------------------
+//DEPRECIATE
+/*
 void Deplacement::accelToTime()
 {
 	//------------------
 	//DEPRECIATE
 	//Temps complet de la phase d'acceleration avant d'atteindre la vitesse maxi
-	/*
+
 	long fullAccelTime = (_speed/_accel)*1000000;
 	long nbStepAccel = 0;
-	*/
+
 
 	//Increment de temps entre deux pas dans la phase d'acceleration et de decceleration
 	//_incAccTime = sqrt(1000.0/(_accel/_percentages[0]));
 	//-------------------
 }
-
+*/
 //DEPRECIATE
+/*
 void Deplacement::setMaxPercentageProfil(char percentage)
 {
 	if(percentage > 100)percentage=100;
 	_percentages[1] = percentage;
 	_percentages[0]=_percentages[2]=(100-_percentages[1])/2;
 }
+*/
+
 
 bool Deplacement::run()
 {
 	bool state;
 	if (_currentStep<_targetStep)
 	{
-		if ((micros()-_lastTime) >=_P)
+		if ((micros()-_lastTime) >=_Pa)
 		{
-			if(_currentStep<_profileSteps[0])
+			if(_currentStep<_accelDistance)
 			{
 				// Phase d'acceleration
 				_m=-_R;
 			}
-			else if(_currentStep>=_profileSteps[0] && _currentStep<(_profileSteps[1]+_profileSteps[0]))
+			else if(_currentStep>=_accelDistance && _currentStep<=_targetStep-_accelDistance)
 			{
 				// Phase vitesse constante
 				_m=0;
 			}
-			else if(_currentStep<_targetStep)
+			//else if(_currentStep<_targetStep && _currentStep>_targetStep-_accelDistance )
+			else
 			{
 				// Phase de decceleration
 				_m=_R;
 			}
 			// Equation 22
-			_q = _m*_P*_P;
-			// Equation 22
-			//p = p*(1 + q + 1.5*q*q)
-			_Pa = _P*(1+_q+1.5*_q*_q);
+			_q = _m*_Pa*_Pa;
+			// Equation 23
+			//p = p*(1 + q + q*q)
+			_Pa = _Pa*(1+_q+_q*_q);
 			_lastTime = micros();
 			Step();
 			_currentStep=_currentStep+1;
@@ -128,8 +136,8 @@ bool Deplacement::run()
 void Deplacement::setMaxSpeed(unsigned long speed)
 {
 	_speed = speed;
-	speedToTime();
-	_stepTime = _maxSpeedTime;
+	//DEPRECIATE
+	//_stepTime = 1000000/_speed;
 }
 
 void Deplacement::setAcceleration(unsigned long accel)
@@ -151,11 +159,12 @@ void Deplacement::turn(long angle)
 	}
 	else
 	{
-		_dirMotorLeft = 1;
-		_dirMotorRight = 0;
+		_dirMotorLeft = 0;
+		_dirMotorRight = 1;
 	}
 	setDirection();
 	setProfil();
+	computeSpeedAccel();
 }
 
 void Deplacement::go(long distance)
@@ -164,7 +173,6 @@ void Deplacement::go(long distance)
 
 	_targetStep = abs(distance);
 	_currentStep = 0;
-	_currentStepTime = INIT_TIME;
 
 	if (distance > 0)
 	{
@@ -181,17 +189,19 @@ void Deplacement::go(long distance)
 	computeSpeedAccel();
 }
 
+//DEPRECIATE
+/*
 void Deplacement::setProfil()
 {
-	/*
+
 	Depreciate Methode
 	for(int i = 0;i<=2;i++)
 	{
 		_profileSteps[i]=(long(_percentages[i])*_targetStep)/100 ;
 	}
-	*/
-	_profileSteps[0]=(pow(_speed,2)/(2*_accel)); //Equation 16
+
 }
+*/
 
 void Deplacement::computeSpeedAccel()
 {
@@ -200,6 +210,8 @@ void Deplacement::computeSpeedAccel()
 	_Pa=_P1; // Deplacement initial
 	// Equation 19
 	_R=_accel/pow(1000000,2);
+	//Equation 16
+	_accelDistance=(pow(_speed,2)/(2*_accel));
 }
 
 void Deplacement::turnGo(long angle, long distance)
