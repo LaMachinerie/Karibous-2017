@@ -192,7 +192,6 @@ bool Deplacement::runGoTo()
 	{
 		case 0:
 			//Stop
-			return false;
 		break;
 		case 1:
 			//Init turn
@@ -212,25 +211,48 @@ bool Deplacement::runGoTo()
 			if(!run()) _stateGoTo = 0; // Le robot est arrivé
 		break;
 	}
+
+	if(_stateGoTo == 0)
+	{
+		return false;
+	}
+	else
+	{
+		return true;
+	}
 }
 
 void Deplacement::goTo(long X, long Y, long orientation)
 {
-	double distance;
-	double angle;
-	distance = sqrt(pow((Y-_YActu),2)+pow((X-_XActu),2)); // En mm
-	angle = atan2(Y-_YActu,X-_XActu); // En radians
+	_distance = sqrt(pow((Y-_YActu),2)+pow((X-_XActu),2)); // En mm
+	_angle = restPmPi(atan2(Y-_YActu,X-_XActu)-_angle); // En radians
 
 	_XActu = X;
 	_YActu = Y;
 
-	_targetDistStep = long(distance/_stepResolution);
+	_targetDistStep = double(_distance/_stepResolution);
 
 	// Calcul de la longueur d'arc à effectuer pour réaliser la rotation
-	_arcDistance = angle * PI * _entraxe / 400 ; // En mm
-	_targetArcStep = _arcDistance/_stepResolution ; // Conversion en pas
+	_arcDistance = _angle * (_entraxe / 2) ; // En mm
+	_targetArcStep = double(_arcDistance/_stepResolution) ; // Conversion en pas
+
+	Serial.println(_angle);
 
 	_stateGoTo=1;
+}
+
+double Deplacement::restPmPi(double angle)
+{
+	double newAngle = angle;
+	if ( newAngle > PI)
+	{
+		while ( newAngle > PI) newAngle = PI - angle - PI;
+	}
+	else if ( newAngle < -PI )
+	{
+		while ( newAngle < -PI) newAngle = PI + angle + PI;
+	}
+	return newAngle;
 }
 
 /*

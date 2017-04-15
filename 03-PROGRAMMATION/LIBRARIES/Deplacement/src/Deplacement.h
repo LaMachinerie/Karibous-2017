@@ -52,35 +52,41 @@ public:
 	 * @param orientation Orientation souhaitée
 	 */
 	void goTo(long X, long Y, long orientation);
-
 	/**
 	 * Définit le poucentage du profil de vitesse à vitesse maximum constante
 	 * @param percentage Pourcentage du profil entre 0 et 100
 	 */
 	void setMaxPercentageProfil(char percentage);
-
 	/**
 	 * Fait tourner le robot autour du centre de l'essieu d'un nombre de pas.
 	 * @param angle Angle en pas.
 	 */
 	void turn(long angle);
-
 	/**
 	 * Fait aller le robot en ligne droite de la distance définie en pas.
 	 * @param distance distance en pas.
 	 */
 	void go(long distance);
-
 	/**
 	 * Met à jour le nombre de pas pour faire un tour de moteur.
 	 * Depend du mode de pilotage.
 	 * @param nbStep nombre de pas du moteur. En genreral 200.
 	 */
 	void setNbStep(int nbStep);
-
+	/**
+	 * Fonction remplacant run() dans le cas de mouvements utilsiants les fonctions
+	 * turnGo() et goTo().
+	 * @return Vrai si la distance n'est pas encore atteinte. Faux si la distance est atteinte
+	 */
 	bool runGoTo();
-
+	/**
+	 * Met en pause le mouvement et enregistre les parametres actuels afin de
+	 * proposer une reprise du mouvement via resume() si necessaire.
+	 */
 	void pause();
+	/**
+	 * Re-démarre un mouvement mis en pause precedemment.
+	 */
 	void resume();
 
 	//DEPRECIATE
@@ -89,6 +95,9 @@ public:
 
 protected:
 
+	/**
+	 * Active les sorties pour le pilotage des drivers
+	 */
 	void enableOutputs();
 	/**
 	 * Réalise un step en envoyant une impulsion sur les pattes de "step" des
@@ -100,10 +109,21 @@ protected:
 	 * @param distance distance en mm
 	 */
 	void distanceToStep(long distance);
-
+	/**
+	 * Applique les parametres de direction sur les drivers
+	 */
 	void setDirection();
-
+	/**
+	 * Calcul les nouvelles valeurs de temps pour la gestion des accelerations
+	 * et des vitesses.
+	 */
 	void computeSpeedAccel();
+	/**
+	 * Restreint l'angle en radians entre -pi et pi
+	 * @param  angle Angle à restreindre ( en radians )
+	 * @return       angle restreint ( en radians )
+	 */
+	double restPmPi(double angle);
 
 	//DEPRECIATE
 	//void speedToTime();
@@ -136,11 +156,19 @@ private:
 	 * Nombre de pas à réaliser
 	 */
 	unsigned long _targetStep;
+	/**
+	 * Nombre de pas à réaliser. Utilisé par les fonctions pause()
+	 * et resume()
+	 */
 	unsigned long _targetStepTemp;
 	/**
 	 * Nombre de pas déja effectués
 	 */
 	unsigned long _currentStep;
+	/**
+	 * Nombre de pas déja effectués. Utilisé par les fonctions pause()
+	 * et resume()
+	 */
 	unsigned long _currentStepTemp;
 	/**
 	 * Direction du moteur gauche
@@ -228,19 +256,39 @@ private:
 	 */
 	double _stepResolution;
 	/**
-	 * Longueur de l'arc de rotation.
+	 * Longueur de l'arc de rotation en mm.
 	 */
 	double _arcDistance;
-
+	/**
+	 * Nombre de pas à réaliser pour effectuer une distance.
+	 * Utilisé pour goTo() et turnGo()
+	 */
 	long _targetDistStep;
-
+	/**
+	 * Nombre de pas à réaliser pour effectuer une rotation.
+	 * Utilisé pour goTo() et turnGo()
+	 */
 	long _targetArcStep;
-
+	/**
+	 * Etat de l'action goTo() en cours
+	 */
 	char _stateGoTo;
-
+	/**
+	 * Etat de l'action run()
+	 */
 	bool _stateRun;
-
+	/**
+	 * Etat de la mise en pause
+	 */
 	bool _statePause;
+	/**
+	 * Distance demandée en mm
+	 */
+	double _distance;
+	/**
+	 *  Angle demandé en radians
+	 */
+	double _angle;
 
 	//DEPRECIATE
 	//unsigned long _percentages[3];
