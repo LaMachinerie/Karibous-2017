@@ -70,31 +70,30 @@ bool Deplacement::run()
 {
 	if (_currentStep<_targetStep)
 	{
+		if(_currentStep<_accelDistance)
+		{
+			// Phase d'acceleration
+			_m=-_R;
+		}
+		else if(_currentStep>=_accelDistance && _currentStep<=_targetStep-_accelDistance)
+		{
+			// Phase vitesse constante
+			_m=0;
+		}
+		else
+		{
+			// Phase de decceleration
+			_m=_R;
+		}
 		if ((micros()-_lastTime) >=_Pa)
 		{
-			if(_currentStep<_accelDistance)
-			{
-				// Phase d'acceleration
-				_m=-_R;
-			}
-			else if(_currentStep>=_accelDistance && _currentStep<=_targetStep-_accelDistance)
-			{
-				// Phase vitesse constante
-				_m=0;
-			}
-			else
-			{
-				// Phase de decceleration
-				_m=_R;
-			}
-			// Equation 22
-			_q = _m*_Pa*_Pa;
-			// Equation 23
-			//p = p*(1 + q + q*q)
-			_Pa = _Pa*(1+_q+_q*_q);
-			_lastTime = micros();
 			Step();
+			_lastTime = micros();
 			_currentStep=_currentStep+1;
+			// Equation 22 :
+			_q = _m*_Pa*_Pa;
+			// Equation 23 :
+			_Pa = _Pa*(1+_q+_q*_q);
 		}
 		_stateRun = true;
 	}
